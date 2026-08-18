@@ -1,28 +1,28 @@
 # restful-booker API Tests
 
-Набор автотестов на **pytest + requests** для публичного API [restful-booker](https://restful-booker.herokuapp.com) — включает позитивные и негативные сценарии, auth-flow, параметризацию и документирование известных багов API через `xfail`.
+A test suite built with **pytest + requests** against the public [restful-booker](https://restful-booker.herokuapp.com) API — covers positive and negative scenarios, authentication flows, parametrization, and known API bugs documented via `xfail`.
 
-## Стек
+## Stack
 
 - Python 3.11
 - pytest
 - requests
-- Faker (генерация тестовых данных)
-- pytest-html (HTML-отчёты)
+- Faker (test data generation)
+- pytest-html (HTML reports)
 - pytest-cov (coverage)
 
-## Структура
+## Structure
 
 ```
 .
-├── conftest.py                    # фикстуры: base_url, auth_headers, booking_data, booking
-├── test_restful_booker_auth.py    # тесты аутентификации (/auth)
-├── test_restful_booker.py         # CRUD-тесты бронирований (/booking) + healthcheck (/ping)
-├── pytest.ini                     # конфигурация pytest, маркеры
+├── conftest.py                    # fixtures: base_url, auth_headers, booking_data, booking
+├── test_restful_booker_auth.py    # authentication tests (/auth)
+├── test_restful_booker.py         # booking CRUD tests (/booking) + healthcheck (/ping)
+├── pytest.ini                     # pytest configuration, custom markers
 └── requirements.txt
 ```
 
-## Установка и запуск
+## Setup & running tests
 
 ```bash
 python3 -m venv venv
@@ -32,64 +32,64 @@ pip install -r requirements.txt
 python3 -m pytest -v
 ```
 
-С HTML-отчётом:
+With an HTML report:
 ```bash
 python3 -m pytest -v --html=report.html --self-contained-html
 ```
 
-Запуск по маркеру (например, только smoke-тесты):
+Run by marker (e.g. smoke tests only):
 ```bash
 python3 -m pytest -v -m smoke
 ```
 
-Список доступных маркеров:
+List available markers:
 ```bash
 python3 -m pytest --markers
 ```
 
-## Что покрыто
+## Coverage
 
 **Auth (`/auth`)**
-- Успешная аутентификация, валидация структуры и типа токена
-- Невалидные креды: неверный username/password, пустые значения, отсутствующие поля (параметризовано)
-- Невалидный `Content-Type`
+- Successful authentication, response structure and token type validation
+- Invalid credentials: wrong username/password, empty values, missing fields (parametrized)
+- Invalid `Content-Type`
 
 **Booking (`/booking`)**
-- `GET /booking` — список бронирований, наличие `bookingid`
-- `GET /booking/{id}` — обязательные поля, разные значения `Accept`-заголовка
-- `GET /booking/{id}` с невалидным id
-- `POST /booking` — валидный body, проверка типов полей в ответе
-- `POST /booking` с невалидным body (12 негативных кейсов: отсутствующие поля, неверные типы, лишние поля, опечатки в именах полей)
-- `PUT /booking/{id}` — полное обновление с auth
-- `PATCH /booking/{id}` — частичное обновление, проверка что остальные поля не изменились
-- `DELETE /booking/{id}` — включая cleanup через фикстуру
-- `DELETE` несуществующего booking
+- `GET /booking` — list of bookings, presence of `bookingid`
+- `GET /booking/{id}` — required fields, different `Accept` header values
+- `GET /booking/{id}` with an invalid id
+- `POST /booking` — valid body, response field type validation
+- `POST /booking` with invalid body (12 negative cases: missing fields, wrong types, extra fields, typos in field names)
+- `PUT /booking/{id}` — full update with auth
+- `PATCH /booking/{id}` — partial update, verifies untouched fields remain unchanged
+- `DELETE /booking/{id}` — including cleanup via fixture
+- `DELETE` of a non-existent booking
 
 **Health (`/ping`)**
 - Healthcheck
 
-## Фикстуры
+## Fixtures
 
-- `base_url` (session) — базовый URL API
-- `auth_headers` (session) — получает токен через `/auth`, отдаёт готовый `Cookie`-заголовок
-- `booking_data` (function) — генерирует случайные данные бронирования через Faker
-- `booking` (function) — создаёт booking через API, возвращает id, удаляет его в teardown (cleanup не падает, если booking уже удалён внутри теста)
+- `base_url` (session) — API base URL
+- `auth_headers` (session) — obtains a token via `/auth`, returns a ready-to-use `Cookie` header
+- `booking_data` (function) — generates random booking data via Faker
+- `booking` (function) — creates a booking through the API, returns its id, deletes it during teardown (cleanup does not fail if the booking was already deleted inside the test)
 
-## Известные баги API (задокументированы через `xfail`)
+## Known API bugs (documented via `xfail`)
 
-Эти тесты написаны на ожидаемое/спецификационное поведение и намеренно остаются падающими — так они служат живой документацией расхождений API со стандартом, а не шумом в отчёте:
+These tests are written against the expected/spec-compliant behavior and are intentionally left failing — this way they act as living documentation of the API's deviations from the standard, rather than noise in the report:
 
-| Эндпоинт | Ожидается | Реально возвращает |
+| Endpoint | Expected | Actual |
 |---|---|---|
-| `POST /auth` с невалидными кредами | `400 Bad Request` | `200 OK` |
-| `POST /auth` с невалидным `Content-Type` | `415 Unsupported Media Type` | `200 OK` |
-| `POST /booking` с невалидным body | `400 Bad Request` | Разные коды в зависимости от кейса (`strict=True` — тест упадёт, если поведение вдруг починят) |
+| `POST /auth` with invalid credentials | `400 Bad Request` | `200 OK` |
+| `POST /auth` with invalid `Content-Type` | `415 Unsupported Media Type` | `200 OK` |
+| `POST /booking` with invalid body | `400 Bad Request` | Varies by case (`strict=True` — the test will fail if this behavior is ever fixed) |
 | `DELETE /booking/{id}` | `204 No Content` | `201 Created` |
-| `DELETE` несуществующего booking | `404 Not Found` | `405 Method Not Allowed` |
+| `DELETE` of a non-existent booking | `404 Not Found` | `405 Method Not Allowed` |
 | `GET /ping` | `200 OK` | `201 Created` |
-| `GET /booking/{id}` с `Accept: text/xml` | `200`/`406` | `418 I'm a teapot` |
+| `GET /booking/{id}` with `Accept: text/xml` | `200`/`406` | `418 I'm a teapot` |
 
-## Заметки
+## Notes
 
-- Auth на restful-booker нестандартный: рабочий вариант — `Cookie: token=<value>`, а не `Authorization: Bearer`.
-- Явные `for`-циклы вместо `all()` в проверках списков — для точной диагностики, какой именно элемент не прошёл проверку.
+- Auth on restful-booker is non-standard: the working approach is `Cookie: token=<value>`, not `Authorization: Bearer`.
+- Explicit `for` loops instead of `all()` when checking lists — for precise diagnostics on which specific element failed.
